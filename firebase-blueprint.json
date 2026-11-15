@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "payments": {
+      "title": "Payment Record",
+      "description": "Stores payment information for users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who made the payment." },
+        "amount": { "type": "number", "description": "The amount paid in cents." },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"], "description": "The status of the payment." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The time the payment was recorded." },
+        "stripePaymentIntentId": { "type": "string", "description": "The Stripe PaymentIntent ID." }
+      },
+      "required": ["userId", "amount", "status", "createdAt"]
+    },
+    "leads": {
+      "title": "Lead",
+      "description": "A contact form submission.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "brand": { "type": "string" },
+        "service": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "service", "createdAt"]
+    },
+    "audits": {
+      "title": "Audit",
+      "description": "A free audit request.",
+      "type": "object",
+      "properties": {
+        "businessName": { "type": "string" },
+        "industry": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessName", "industry", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/payments/{paymentId}": {
+      "schema": "payments",
+      "description": "Collection of payment records."
+    },
+    "/leads/{leadId}": {
+      "schema": "leads",
+      "description": "Collection of contact form submissions."
+    },
+    "/audits/{auditId}": {
+      "schema": "audits",
+      "description": "Collection of free audit requests."
+    }
+  }
+}
