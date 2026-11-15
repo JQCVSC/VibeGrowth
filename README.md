@@ -1,6 +1,8 @@
-# VibeGrowth Agency
-
-> **Hyper-local growth agency web application** built for San Tan Valley & Pinal County, AZ service professionals (roofing, landscaping, plumbing, HVAC, electrical, and home services).
+<div align="center">
+  <img src="https://i.imgur.com/nI2CZ2l.png" alt="VibeGrowth Agency Logo" height="88" />
+  <h1>VibeGrowth Agency</h1>
+  <p><strong>Hyper-local growth agency web application</strong> built for San Tan Valley &amp; Pinal County, AZ service professionals (roofing, landscaping, plumbing, HVAC, electrical, and home services).</p>
+</div>
 
 VibeGrowth combines a dark-editorial marketing frontend, a free local audit intake pipeline, Google OAuth authentication, and a modular Stripe checkout flow backed by Express and Cloud Firestore.
 
