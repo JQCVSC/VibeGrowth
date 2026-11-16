@@ -190,10 +190,11 @@ export const Contact = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4">
+                    <label htmlFor="contact-name" className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4 block">
                       Full Name
                     </label>
                     <input
+                      id="contact-name"
                       required
                       maxLength={100}
                       type="text"
@@ -204,10 +205,11 @@ export const Contact = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4">
+                    <label htmlFor="contact-email" className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4 block">
                       Email Address
                     </label>
                     <input
+                      id="contact-email"
                       required
                       maxLength={254}
                       type="email"
@@ -221,10 +223,11 @@ export const Contact = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4">
+                    <label htmlFor="contact-brand" className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4 block">
                       Brand Name
                     </label>
                     <input
+                      id="contact-brand"
                       maxLength={120}
                       type="text"
                       placeholder="Your Company"
@@ -234,10 +237,11 @@ export const Contact = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4">
+                    <label htmlFor="contact-service" className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4 block">
                       Service Needed
                     </label>
                     <select
+                      id="contact-service"
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-brand-primary transition-colors appearance-none"
                       value={formState.service}
                       onChange={(e) => setFormState({ ...formState, service: e.target.value })}
@@ -252,10 +256,11 @@ export const Contact = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4">
+                  <label htmlFor="contact-message" className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-4 block">
                     Your Message
                   </label>
                   <textarea
+                    id="contact-message"
                     rows={4}
                     maxLength={2000}
                     placeholder="Tell us about your project..."
@@ -265,7 +270,7 @@ export const Contact = () => {
                   />
                 </div>
 
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                {error && <p role="alert" className="text-red-500 text-sm text-center">{error}</p>}
 
                 <button
                   type="submit"

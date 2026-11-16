@@ -26,15 +26,21 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
-    // Maintainable admin authorization:
+    // Maintainable admin authorization (aligned with server/firebaseAdmin.ts isAdminUser):
     // 1. Custom Auth claim (admin == true) set via Firebase Admin SDK
     // 2. Server/Console-managed /admins/{uid} allowlist document
     // 3. Verified bootstrap owner email (requires email_verified == true)
+    // Note: Firestore rules cannot read server env vars (such as ADMIN_EMAIL). Grant
+    // additional admins via /admins/{uid} or custom claim admin=true so server and rules stay in sync.
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.admin == true ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        (request.auth.token.email == "jeremycodjoe@gmail.com" && request.auth.token.email_verified == true)
+        (
+          request.auth.token.email is string &&
+          request.auth.token.email.lower() == "jeremycodjoe@gmail.com" &&
+          request.auth.token.email_verified == true
+        )
       );
     }
 
@@ -53,37 +59,13 @@ service cloud.firestore {
         data.name.size() <= 100 &&
         isValidEmail(data.email) &&
         (!('brand' in data) || (data.brand is string && data.brand.size() <= 120)) &&
-        data.service is string &&
-        data.service in [
+        data['service'] is string &&
+        data['service'] in [
           'Google Maps Dominance',
           'Review Automation & AI',
           'Instant Lead Landing Page'
         ] &&
         (!('message' in data) || (data.message is string && data.message.size() <= 2000)) &&
-        data.createdAt == request.time;
-    }
-
-    function isValidAudit(data) {
-      return data.keys().hasAll(['businessName', 'industry', 'email', 'createdAt']) &&
-        data.keys().hasOnly(['businessName', 'industry', 'email', 'phone', 'createdAt']) &&
-        data.businessName is string &&
-        data.businessName.size() >= 1 &&
-        data.businessName.size() <= 120 &&
-        data.industry is string &&
-        data.industry in [
-          'Roofing',
-          'Landscaping',
-          'Plumbing',
-          'HVAC',
-          'Electrical',
-          'Other Service Pro'
-        ] &&
-        isValidEmail(data.email) &&
-        (!('phone' in data) || (
-          data.phone is string &&
-          data.phone.size() <= 30 &&
-          (data.phone.size() == 0 || data.phone.matches('^[0-9+()\\-.\\s]{7,30}$'))
-        )) &&
         data.createdAt == request.time;
     }
 
@@ -103,12 +85,11 @@ service cloud.firestore {
       allow delete: if isValidId(leadId) && isAdmin();
     }
 
+    // Audits and preliminary AI drafts are created, reviewed, and managed strictly by the Express server via Firebase Admin SDK.
     match /audits/{auditId} {
-      allow create: if isValidId(auditId) && isValidAudit(incoming());
       allow get: if isValidId(auditId) && isAdmin();
       allow list: if isAdmin();
-      allow update: if isValidId(auditId) && isAdmin() && isValidAudit(incoming()) && incoming().createdAt == existing().createdAt;
-      allow delete: if isValidId(auditId) && isAdmin();
+      allow create, update, delete: if false;
     }
 
     // Payments are created and updated strictly by the backend via Firebase Admin SDK & Stripe webhooks.
@@ -131,6 +112,18 @@ service cloud.firestore {
     }
 
     match /stripe_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /audit_rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /audit_usage/{usageId} {
+      allow read, write: if false;
+    }
+
+    match /audit_dedup/{dedupId} {
       allow read, write: if false;
     }
   }

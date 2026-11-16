@@ -45,8 +45,9 @@ VibeGrowth combines a dark-editorial marketing frontend, a validated lead &amp; 
 ## Quickstart
 
 ### 1. Install dependencies
+Use `npm ci` for reproducible installs from `package-lock.json` (`bun.lock` is also kept synchronized with `package.json`):
 ```bash
-npm install
+npm ci
 ```
 
 ### 2. Configure environment variables
@@ -60,11 +61,12 @@ npm run dev
 
 ### 4. Type-check, test &amp; build for production
 ```bash
-npm run lint     # Runs tsc --noEmit
-npm test         # Runs Vitest suite (tests/payment.test.ts) with mocked Stripe/Firebase
-npm run build    # Outputs production SPA bundle to dist/
-npm start        # Runs Express in production serving dist/ + SPA fallback
-npm run clean    # Removes dist/
+npm run lint       # Runs tsc --noEmit
+npm test           # Runs Vitest API/unit suite (audits & payment tests) with mocked SDKs
+npm run test:rules # Runs Firestore Security Rules tests via pinned firebase-tools devDependency (requires Java 21+ for firebase-tools 15.x)
+npm run build      # Outputs production SPA bundle to dist/
+npm start          # Runs Express in production serving dist/ + SPA fallback
+npm run clean      # Removes dist/
 ```
 
 ---
@@ -81,14 +83,24 @@ Defined in `.env.example`:
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Client (`Payment.tsx`) | For checkout UI | Stripe publishable key (`pk_test_...` / `pk_live_...`). Safe for browser bundle. |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Server (`firebaseAdmin.ts`) | When not using ADC | Inline JSON string of a Firebase service account key from secret manager. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Server | Optional alternative | File path to service account JSON (not needed if `FIREBASE_SERVICE_ACCOUNT_JSON` or Cloud Run ADC is set). |
-| `FIREBASE_PROJECT_ID` | Server | Optional override | Overrides `projectId` from `firebase-applet-config.json`. |
-| `FIREBASE_DATABASE_ID` | Server | Optional override | Overrides `firestoreDatabaseId` from `firebase-applet-config.json`. |
+| `FIREBASE_PROJECT_ID` | Server | Optional override | Overrides `projectId` from `firebase-applet-config.json` (defaults to `citationgenerator001`). |
+| `FIREBASE_DATABASE_ID` | Server | Optional override | Overrides `firestoreDatabaseId` from `firebase-applet-config.json` (defaults to `ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e`). |
 | `ADMIN_EMAIL` | Server | Optional override | Verified bootstrap admin email fallback (defaults to `jeremycodjoe@gmail.com`). |
-| `GEMINI_API_KEY` | Server / Build | Optional | Gemini API key for future AI features. |
+| `GOOGLE_CLOUD_PROJECT` | Server (`auditService.ts`) | For Vertex AI drafts | GCP project ID used by `@google/genai` in Vertex AI mode via Application Default Credentials (documented project: `citationgenerator001`; draft generation stays unavailable when unset). |
+| `GOOGLE_CLOUD_LOCATION` | Server (`auditService.ts`) | Optional | Vertex AI location/endpoint (defaults to `global`). |
+| `GEMINI_MODEL` | Server (`auditService.ts`) | Optional | Gemini model ID on Vertex AI (defaults to `gemini-3.8-flash`). |
+| `AUDIT_RATE_LIMIT_MAX_PER_IP` | Server (`firebaseAdmin.ts`) | Optional | Max audit submissions per IP per 15-minute window across instances (default `5`). |
+| `AUDIT_RATE_LIMIT_MAX_PER_EMAIL` | Server (`firebaseAdmin.ts`) | Optional | Max audit submissions per normalized email per 60-minute window (default `2`). |
+| `AUDIT_DAILY_AI_LIMIT` | Server (`firebaseAdmin.ts`) | Optional | Shared daily UTC cap on Vertex AI draft generations across both public intake and admin regeneration (default `100`). |
+| `AUDIT_ADMIN_REGEN_MAX_PER_ADMIN` | Server (`firebaseAdmin.ts`) | Optional | Max admin draft regenerations per admin UID per 15-minute window (default `10`). |
+| `AUDIT_ADMIN_REGEN_MAX_PER_AUDIT` | Server (`firebaseAdmin.ts`) | Optional | Max admin draft regenerations per audit ID per 15-minute window (default `3`). |
+| `AUDIT_USAGE_RETENTION_DAYS` | Server (`firebaseAdmin.ts`) | Optional | Retention window in days for `audit_usage` daily counters (`expireAt` TTL, default `30`). |
+| `AUDIT_DRAFT_TIMEOUT_MS` | Server (`auditService.ts`) | Optional | Hard timeout in ms for each Vertex AI draft call (default `12000`). |
+| `AUDIT_DRAFT_MAX_OUTPUT_TOKENS` | Server (`auditService.ts`) | Optional | Output token cap per Vertex AI draft call (default `2048`). |
 | `APP_URL` | Runtime | Optional | Public URL of the deployed instance. |
 | `DISABLE_HMR` | Vite Dev Server | Optional | Set to `"true"` in iframe/agent environments to disable Vite HMR file watching. |
 
-> **Security Note:** Never expose `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, or `FIREBASE_SERVICE_ACCOUNT_JSON` with a `VITE_` prefix. Only `VITE_*` variables are bundled into browser code.
+> **Security Note:** Never expose `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON`, or Vertex AI / Gemini configuration in browser code (`VITE_*`). No `GEMINI_API_KEY` is injected into the Vite bundle.
 
 ---
 
@@ -99,20 +111,25 @@ Defined in `.env.example`:
 ├── DEVELOPER_REPORT.md          # Initial prototype UI documentation
 ├── firebase-applet-config.json  # Firebase project & Firestore DB client configuration
 ├── firebase-blueprint.json      # Formal JSON schema blueprint for Firestore entities
+├── firebase.json                # Firebase CLI rules target (ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e) & emulator config
 ├── firestore.rules              # Hardened Cloud Firestore security rules
 ├── index.html                   # HTML shell (imports /src/main.tsx)
 ├── metadata.json                # App metadata
-├── package.json                 # Dependencies and npm scripts (dev, start, build, lint, test)
+├── package.json                 # Dependencies and npm scripts (dev, start, build, lint, test, test:rules)
 ├── server.ts                    # Server entrypoint listening on process.env.PORT || 3000
 ├── tsconfig.json                # TypeScript config
 ├── vite.config.ts               # Vite + React + Tailwind v4 plugin config
 ├── shared/
+│   ├── audit.ts                 # Canonical audit types, industry enums, and non-PII Gemini schema
 │   └── catalog.ts               # Canonical product IDs, names, descriptions, and prices (cents)
 ├── server/
-│   ├── app.ts                   # Express app factory (webhook, checkout, status, SPA fallback)
+│   ├── app.ts                   # Express app factory (audits, admin review, webhook, checkout, SPA fallback)
+│   ├── auditService.ts          # Audit validation, IP rate limiter, Vertex AI preliminary draft generator
 │   ├── catalog.ts               # Server-side catalog allowlist validator & order calculator
-│   └── firebaseAdmin.ts         # Firebase Admin SDK init & transactional FirestorePaymentStore
+│   └── firebaseAdmin.ts         # Firebase Admin SDK init, shared isAdminUser, FirestorePaymentStore, FirestoreAuditStore
 ├── tests/
+│   ├── audits.test.ts           # Vitest + Supertest audit intake, Gemini privacy, rate-limit, and admin tests
+│   ├── firestore.rules.test.ts  # Firebase Emulator tests for firestore.rules across all collections
 │   └── payment.test.ts          # Vitest + Supertest security, webhook, and SPA routing suite
 └── src/
     ├── main.tsx                 # React root mount
@@ -126,14 +143,17 @@ Defined in `.env.example`:
     ├── components/
     │   ├── Navbar.tsx           # Fixed glass navbar, route links, Google Auth login/logout
     │   ├── Footer.tsx           # Brand summary, navigation links, social icons, legal links
-    │   └── AuditModal.tsx       # "Free Local Audit" modal with validation & honeypot -> `audits`
+    │   └── AuditModal.tsx       # "Free Local Audit" modal -> submits to POST /api/audits
     └── pages/
         ├── Home.tsx             # Landing page: Hero, neighborhood marquee, services preview, stats
         ├── Services.tsx         # 3 core offerings + "Establish Your Presence" audit triggers
         ├── Work.tsx             # Local contractor case studies & results tags
         ├── Contact.tsx          # Contact form with validation & honeypot -> `leads`
         ├── Payment.tsx          # Google Auth gate, plan/menu selector, server-priced Stripe Elements
-        └── PaymentSuccess.tsx   # Server-verified order status screen (never trusts URL params)
+        ├── PaymentSuccess.tsx   # Server-verified order status screen (never trusts URL params)
+        ├── AdminAudits.tsx      # Authenticated admin-only preliminary audit draft review queue
+        ├── Privacy.tsx          # Privacy Policy with truthful data/AI/TTL disclosures & owner legal placeholders
+        └── Terms.tsx            # Terms of Service with truthful audit-draft disclaimers & owner legal placeholders
 ```
 
 ---
@@ -150,6 +170,9 @@ Defined in `.env.example`:
 | `/contact` | `Contact` | Validated lead inquiry form submitting to Firestore `leads` |
 | `/payment` | `Payment` | Plan selector, modular add-on builder, and Stripe `PaymentElement` |
 | `/payment-success` | `PaymentSuccess` | Polls `GET /api/payments/:paymentIntentId` to verify confirmed payment status |
+| `/admin/audits` | `AdminAudits` | Authenticated administrator-only queue for reviewing preliminary AI audit drafts |
+| `/privacy` | `Privacy` | Privacy Policy disclosing audit intake, Vertex AI scrubbing, Stripe payments, and SHA-256/TTL retention |
+| `/terms` | `Terms` | Terms of Service clarifying preliminary draft scope, checkout terms, and owner legal placeholders |
 | `*` | `Home` | Catch-all fallback route |
 
 ---
@@ -175,10 +198,19 @@ Mounted **before** `express.json()` using `express.raw({ type: "application/json
 - **Authorization:** Only the payment owner (`payment.userId === decodedToken.uid`) or an authorized admin may read (`403` otherwise).
 - **Response:** `{ paymentIntentId, status, amount, currency, planName, failureReason }`.
 
+### `POST /api/audits`
+- **Public Intake (`AuditModal.tsx`):** Stores review requests and prepares an **internal preliminary planning draft** only — the app does **not** automatically inspect live rankings, record videos, or send emails. Validates all fields, blocks embedded email addresses, phone numbers, or URLs inside free-text `businessName` / `serviceArea` fields, silently drops honeypot (`hpContact`) submissions, and persists requests via Firebase Admin SDK (`reviewStatus: "pending_review"`).
+- **Shared Abuse Controls &amp; Deduplication:** Uses Firestore-backed transactional limits across server instances (`audit_rate_limits` per hashed IP and hashed email, returning `429` + `Retry-After`), a shared daily Vertex AI draft budget (`audit_usage`), and a 15-minute deduplication lock (`audit_dedup` using normalized request fingerprint + optional `Idempotency-Key` / `submissionId`) so timeout retries return `200 { duplicate: true }` without creating duplicate records or re-calling Vertex AI.
+- **Private Preliminary Gemini Draft (Vertex AI ADC):** Sends `businessName`, `industry`, `serviceArea` (validated to block and defense-in-depth scrubbed of any embedded emails, phone numbers, or URLs), and `hasWebsiteLink` / `hasGoogleProfileLink` booleans to Vertex AI (`GEMINI_MODEL` defaulting to `gemini-3.8-flash`, bounded by `maxOutputTokens` and an `AbortController` timeout). Customer `email`, `phone`, and entered URLs are never sent to Gemini. Output is labeled **"PRELIMINARY RECOMMENDATIONS — NOT A VERIFIED LIVE AUDIT"** and never returned in the public HTTP response or emailed automatically.
+
+### `GET /api/admin/audits`, `PATCH /api/admin/audits/:auditId/review`, `POST /api/admin/audits/:auditId/regenerate-draft`
+- **Auth, Revocation &amp; Role Gate:** Verifies Firebase ID tokens with **revocation checking enabled** (`verifyIdToken(token, true)`), fails closed with `503` if Firestore admin verification errors, and requires verified administrator status (`403` otherwise).
+- **Manual Human Review Workflow:** Strategists sign into `/admin/audits`, manually inspect the business's live Google Business Profile, website, reviews, and local rankings outside the app, update `reviewStatus` (`pending_review`, `approved`, `needs_revision`, `archived`) + `reviewerNotes`, and manually send any follow-up email or personally recorded video breakdown only after human verification.
+
 ### `GET /api/health` &amp; SPA Fallback
 - `GET /api/health` returns `200 { "status": "ok" }`.
 - Unknown `/api/*` routes return JSON `404`.
-- In production (`NODE_ENV=production`), Express serves `dist/` and falls back all non-API GET routes to `dist/index.html` so direct browser visits or refreshes on `/services`, `/payment`, `/payment-success`, etc. work cleanly.
+- In production (`NODE_ENV=production`), Express serves `dist/` and falls back all non-API GET routes to `dist/index.html` so direct browser visits or refreshes on `/services`, `/payment`, `/payment-success`, `/admin/audits`, etc. work cleanly.
 
 ---
 
@@ -196,18 +228,21 @@ Mounted **before** `express.json()` using `express.raw({ type: "application/json
 
 ## Firebase &amp; Firestore Schema
 
-Initialized client-side in `src/firebase.ts` and server-side in `server/firebaseAdmin.ts` against `projectId` and `firestoreDatabaseId` from `firebase-applet-config.json` (with `FIREBASE_PROJECT_ID` / `FIREBASE_DATABASE_ID` env overrides).
+Initialized client-side in `src/firebase.ts` and server-side in `server/firebaseAdmin.ts` against `projectId` (`citationgenerator001`) and `firestoreDatabaseId` (`ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e`) from `firebase-applet-config.json` (with `FIREBASE_PROJECT_ID` / `FIREBASE_DATABASE_ID` env overrides).
 
 Formal schemas live in `firebase-blueprint.json` and are enforced in `firestore.rules`:
 
 | Collection | Read Access | Client Write Access | Validation &amp; Abuse Protections |
 | :--- | :--- | :--- | :--- |
-| `/audits/{auditId}` | Admin only | Public `create` only | Required/allowed keys only (`hasAll`/`hasOnly`), length caps (`businessName` 1–120, `email` 5–254, `phone` ≤30), industry enum, email &amp; phone regex, `createdAt == request.time`, valid doc ID regex. Client forms also enforce `maxLength`, trimming, and a hidden honeypot. |
+| `/audits/{auditId}` | Admin only | **Denied (`if false`)** | Submitted via server `POST /api/audits` (server-side validation, IP rate limiting, honeypot) and managed strictly via Firebase Admin SDK. |
 | `/leads/{leadId}` | Admin only | Public `create` only | Required/allowed keys only, length caps (`name` 1–100, `email` 5–254, `brand` ≤120, `message` ≤2000), service enum, email regex, `createdAt == request.time`, valid doc ID regex. Client forms enforce `maxLength`, trimming, and a hidden honeypot. |
 | `/payments/{paymentId}` | Owner (`userId == auth.uid`) or Admin | **Denied (`if false`)** | Created &amp; updated strictly by server via Firebase Admin SDK &amp; verified Stripe webhooks. |
 | `/users/{userId}` | Owner or Admin | Verified owner only | Strict `hasAll`/`hasOnly` (`displayName`, `email`, `updatedAt`), blocks self-assigned `role`/`isAdmin` fields. |
 | `/admins/{adminId}` | **Denied (`if false`)** | **Denied (`if false`)** | Managed strictly via Firebase Console or Admin SDK. |
 | `/stripe_events/{eventId}` | **Denied (`if false`)** | **Denied (`if false`)** | Server-only idempotency log for processed Stripe webhook event IDs. |
+| `/audit_rate_limits/{limitId}` | **Denied (`if false`)** | **Denied (`if false`)** | Server-only hashed IP/email/admin-regen rate-limit buckets with `expireAt` TTL timestamps. |
+| `/audit_usage/{usageId}` | **Denied (`if false`)** | **Denied (`if false`)** | Server-only daily UTC counter capping Vertex AI draft generations (`expireAt` TTL, default 30d). |
+| `/audit_dedup/{dedupId}` | **Denied (`if false`)** | **Denied (`if false`)** | Server-only 15-minute full-field deduplication locks with `expireAt` TTL timestamps. |
 
 > **Important Abuse-Protection Note:** Firestore Security Rules validate document shape, field types, length bounds, and server timestamps, **not per-IP rate limiting**. To mitigate automated spam at scale in production, enable **Firebase App Check** (reCAPTCHA Enterprise) on Firestore or route `leads` and `audits` through a rate-limited Express endpoint behind Cloud Armor / reverse-proxy rate limiting.
 
@@ -215,7 +250,7 @@ Formal schemas live in `firebase-blueprint.json` and are enforced in `firestore.
 
 ## Admin Authorization Setup
 
-`firestore.rules` uses a layered, maintainable `isAdmin()` check that preserves the owner's access while avoiding brittle rule edits for future team members:
+`firestore.rules` (`isAdmin()`) and `server/firebaseAdmin.ts` (`isAdminUser()`) enforce a consistent three-tier admin policy:
 
 1. **Custom Auth Claim (`request.auth.token.admin == true`)** — Fast, zero-read RBAC claim set via Firebase Admin SDK:
    ```ts
@@ -227,8 +262,8 @@ Formal schemas live in `firebase-blueprint.json` and are enforced in `firestore.
    - Create collection `admins` and add a document whose **Document ID** is the admin user's **Firebase Auth UID** (e.g., `{ email: "jeremycodjoe@gmail.com" }`).
    - Because `/admins` has `allow read, write: if false;` for clients, nobody can self-promote.
 3. **Verified Bootstrap Owner Fallback:**
-   - `request.auth.token.email == "jeremycodjoe@gmail.com" && request.auth.token.email_verified == true`
-   - Ensures the owner retains immediate access even before creating `/admins/{uid}` or custom claims, while closing email-spoofing via `email_verified == true`.
+   - Case-insensitive `jeremycodjoe@gmail.com` with `email_verified == true` in both `firestore.rules` and `server/firebaseAdmin.ts`.
+   - **Intentional Server-Only Difference (`ADMIN_EMAIL`):** `server/firebaseAdmin.ts` also checks an optional `ADMIN_EMAIL` env var for Express API routes, which Firestore Security Rules cannot read. To grant additional team members admin access across **both** Express APIs and Firestore Rules, use `/admins/{uid}` or custom claim `admin: true`.
 
 ---
 
@@ -237,7 +272,7 @@ Formal schemas live in `firebase-blueprint.json` and are enforced in `firestore.
 Before launching on your production domain:
 
 1. **Enable Google Sign-In Provider:**
-   - Open [Firebase Console](https://console.firebase.google.com/) &rarr; select project **`sky-interxept-490918`**.
+   - Open [Firebase Console](https://console.firebase.google.com/) &rarr; select project **`citationgenerator001`**.
    - Go to **Authentication &rarr; Sign-in method**.
    - Click **Add new provider &rarr; Google**, toggle **Enable**, set your **Support email**, and save.
 2. **Add Production &amp; Preview Domains to Authorized Domains:**
@@ -246,8 +281,20 @@ Before launching on your production domain:
      - Your production custom domain (e.g. `vibegrowth.agency` and `www.vibegrowth.agency`)
      - Any Cloud Run / preview hostname used for staging (e.g. `ais-pre-vfdbhjhxpyeab3bf4t7g3b-194977628392.us-west2.run.app`).
    - Keep `localhost` enabled for local development.
-3. **Deploy Updated Firestore Rules:**
-   - Deploy `firestore.rules` to database `ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e` via Firebase CLI (`firebase deploy --only firestore:rules`) or the Firebase Console Rules editor before accepting live traffic.
+3. **Deploy Updated Firestore Rules & Enable Firestore TTL Policies:**
+   - Deploy `firestore.rules` to database `ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e` using an explicit project argument (`firebase deploy --only firestore:rules --project citationgenerator001`) or the Firebase Console Rules editor before accepting live traffic. (No `.firebaserc` default project is configured so Firebase CLI commands never target production implicitly; `npm run test:rules` stays isolated to `--project demo-vibegrowth`.)
+   - Enable native Firestore TTL on field `expireAt` for `audit_rate_limits`, `audit_dedup`, and `audit_usage` in database `ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e`:
+     ```bash
+     for col in audit_rate_limits audit_dedup audit_usage; do
+       gcloud firestore fields ttls update expireAt \
+         --collection-group="$col" \
+         --database="ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e" \
+         --project=citationgenerator001 \
+         --enable-ttl
+     done
+     ```
+4. **Complete Legal Placeholders Before Launch:**
+   - Replace all `[OWNER ACTION REQUIRED: ...]` fields in `src/pages/Privacy.tsx` and `src/pages/Terms.tsx` with your legal entity name, mailing address, jurisdiction, effective date, and contact emails.
 
 ---
 

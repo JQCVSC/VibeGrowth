@@ -1,5 +1,8 @@
 {
   "name": "VibeGrowth Agency",
   "description": "A high-end, modern landing page for a local growth agency in San Tan Valley, featuring bold typography and smooth animations.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

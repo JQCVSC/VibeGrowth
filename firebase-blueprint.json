@@ -5,87 +5,387 @@
       "description": "Server-managed payment records linked to Firebase users and Stripe PaymentIntents.",
       "type": "object",
       "properties": {
-        "userId": { "type": "string", "description": "Verified Firebase Auth UID of the customer." },
-        "userEmail": { "type": "string", "description": "Verified email address of the customer, if present." },
-        "amount": { "type": "number", "description": "Server-calculated amount in cents." },
-        "currency": { "type": "string", "enum": ["usd"], "description": "Payment currency code." },
-        "planName": { "type": "string", "description": "Display name of the plan or menu order." },
-        "productIds": { "type": "array", "description": "Allowlisted product IDs purchased." },
-        "status": { "type": "string", "enum": ["pending", "completed", "failed"], "description": "Verified payment status." },
-        "stripePaymentIntentId": { "type": "string", "description": "Stripe PaymentIntent ID." },
-        "lastWebhookEventId": { "type": "string", "description": "Most recent processed Stripe webhook event ID." },
-        "failureReason": { "type": "string", "description": "Optional failure reason recorded from Stripe." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of intent creation." },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update." },
-        "completedAt": { "type": "string", "format": "date-time", "description": "Server timestamp when payment completed." }
+        "userId": {
+          "type": "string",
+          "description": "Verified Firebase Auth UID of the customer."
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Verified email address of the customer, if present."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Server-calculated amount in cents."
+        },
+        "currency": {
+          "type": "string",
+          "enum": [
+            "usd"
+          ],
+          "description": "Payment currency code."
+        },
+        "planName": {
+          "type": "string",
+          "description": "Display name of the plan or menu order."
+        },
+        "productIds": {
+          "type": "array",
+          "description": "Allowlisted product IDs purchased."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "completed",
+            "failed"
+          ],
+          "description": "Verified payment status."
+        },
+        "stripePaymentIntentId": {
+          "type": "string",
+          "description": "Stripe PaymentIntent ID."
+        },
+        "lastWebhookEventId": {
+          "type": "string",
+          "description": "Most recent processed Stripe webhook event ID."
+        },
+        "failureReason": {
+          "type": "string",
+          "description": "Optional failure reason recorded from Stripe."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of intent creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when payment completed."
+        }
       },
-      "required": ["userId", "amount", "currency", "planName", "productIds", "status", "stripePaymentIntentId", "createdAt"]
+      "required": [
+        "userId",
+        "amount",
+        "currency",
+        "planName",
+        "productIds",
+        "status",
+        "stripePaymentIntentId",
+        "createdAt"
+      ]
     },
     "leads": {
       "title": "Lead",
       "description": "A validated contact form submission.",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 254, "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" },
-        "brand": { "type": "string", "maxLength": 120 },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 254,
+          "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+        },
+        "brand": {
+          "type": "string",
+          "maxLength": 120
+        },
         "service": {
           "type": "string",
-          "enum": ["Google Maps Dominance", "Review Automation & AI", "Instant Lead Landing Page"]
+          "enum": [
+            "Google Maps Dominance",
+            "Review Automation & AI",
+            "Instant Lead Landing Page"
+          ]
         },
-        "message": { "type": "string", "maxLength": 2000 },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "message": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["name", "email", "service", "createdAt"]
+      "required": [
+        "name",
+        "email",
+        "service",
+        "createdAt"
+      ]
     },
     "audits": {
       "title": "Audit",
-      "description": "A validated free local visibility audit request.",
+      "description": "Server-managed local visibility audit request with preliminary AI draft requiring human review.",
       "type": "object",
       "properties": {
-        "businessName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "businessName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
         "industry": {
           "type": "string",
-          "enum": ["Roofing", "Landscaping", "Plumbing", "HVAC", "Electrical", "Other Service Pro"]
+          "enum": [
+            "Roofing",
+            "Landscaping",
+            "Plumbing",
+            "HVAC",
+            "Electrical",
+            "Other Service Pro"
+          ]
         },
-        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 254, "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" },
-        "phone": { "type": "string", "maxLength": 30 },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "serviceArea": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 254,
+          "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "websiteUrl": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "googleProfileUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "hasWebsite": {
+          "type": "boolean"
+        },
+        "hasGoogleProfile": {
+          "type": "boolean"
+        },
+        "reviewStatus": {
+          "type": "string",
+          "enum": [
+            "pending_review",
+            "approved",
+            "needs_revision",
+            "archived"
+          ]
+        },
+        "draftStatus": {
+          "type": "string",
+          "enum": [
+            "generating",
+            "ready",
+            "unavailable",
+            "failed"
+          ]
+        },
+        "draft": {
+          "type": "object"
+        },
+        "draftError": {
+          "type": "string"
+        },
+        "reviewedBy": {
+          "type": "string"
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reviewerNotes": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["businessName", "industry", "email", "createdAt"]
+      "required": [
+        "businessName",
+        "industry",
+        "serviceArea",
+        "email",
+        "reviewStatus",
+        "draftStatus",
+        "createdAt"
+      ]
     },
     "users": {
       "title": "User Profile",
       "description": "Owner-editable basic profile record.",
       "type": "object",
       "properties": {
-        "displayName": { "type": "string", "maxLength": 100 },
-        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 254 },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "displayName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 254
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["email", "updatedAt"]
+      "required": [
+        "email",
+        "updatedAt"
+      ]
     },
     "admins": {
       "title": "Admin Allowlist",
       "description": "Server/Console-managed admin UID allowlist.",
       "type": "object",
       "properties": {
-        "email": { "type": "string", "format": "email" },
-        "addedAt": { "type": "string", "format": "date-time" }
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "addedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["email"]
+      "required": [
+        "email"
+      ]
     },
     "stripe_events": {
       "title": "Processed Stripe Event",
       "description": "Idempotency log of verified Stripe webhook events.",
       "type": "object",
       "properties": {
-        "eventId": { "type": "string" },
-        "type": { "type": "string" },
-        "paymentIntentId": { "type": "string" },
-        "processedAt": { "type": "string", "format": "date-time" }
+        "eventId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "paymentIntentId": {
+          "type": "string"
+        },
+        "processedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["eventId", "type", "paymentIntentId", "processedAt"]
+      "required": [
+        "eventId",
+        "type",
+        "paymentIntentId",
+        "processedAt"
+      ]
+    },
+    "audit_rate_limits": {
+      "title": "Audit Rate Limit Bucket",
+      "description": "Server-only sliding-window abuse counter keyed by hashed IP or email.",
+      "type": "object",
+      "properties": {
+        "timestamps": {
+          "type": "array",
+          "description": "Epoch ms timestamps within active window."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expireAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Firestore TTL expiration timestamp."
+        }
+      },
+      "required": [
+        "timestamps",
+        "expireAt",
+        "updatedAt"
+      ]
+    },
+    "audit_usage": {
+      "title": "Daily Audit AI Draft Usage",
+      "description": "Server-only daily counter enforcing cross-instance Vertex AI draft budget.",
+      "type": "object",
+      "properties": {
+        "dateKey": {
+          "type": "string",
+          "description": "UTC date YYYY-MM-DD."
+        },
+        "count": {
+          "type": "number",
+          "description": "Number of draft generations consumed today."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expireAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Firestore TTL expiration timestamp based on AUDIT_USAGE_RETENTION_DAYS."
+        }
+      },
+      "required": [
+        "dateKey",
+        "count",
+        "expireAt",
+        "updatedAt"
+      ]
+    },
+    "audit_dedup": {
+      "title": "Audit Submission Deduplication Lock",
+      "description": "Server-only deduplication record preventing duplicate audit creation/AI calls on timeout retries.",
+      "type": "object",
+      "properties": {
+        "auditId": {
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "fingerprintKey": {
+          "type": "string",
+          "description": "Canonical SHA-256 request fingerprint across all submitted fields."
+        },
+        "expireAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Firestore TTL expiration timestamp."
+        }
+      },
+      "required": [
+        "auditId",
+        "fingerprintKey",
+        "expiresAtMs",
+        "expireAt",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -112,6 +412,18 @@
     "/stripe_events/{eventId}": {
       "schema": "stripe_events",
       "description": "Server-only Stripe webhook idempotency log."
+    },
+    "/audit_rate_limits/{limitId}": {
+      "schema": "audit_rate_limits",
+      "description": "Server-only cross-instance rate-limit buckets for /api/audits."
+    },
+    "/audit_usage/{usageId}": {
+      "schema": "audit_usage",
+      "description": "Server-only daily Vertex AI draft budget counters."
+    },
+    "/audit_dedup/{dedupId}": {
+      "schema": "audit_dedup",
+      "description": "Server-only audit intake deduplication locks for timeout/retry safety."
     }
   }
 }

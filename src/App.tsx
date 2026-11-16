@@ -8,6 +8,9 @@ import { Work } from "./pages/Work";
 import { Contact } from "./pages/Contact";
 import { Payment } from "./pages/Payment";
 import { PaymentSuccess } from "./pages/PaymentSuccess";
+import { AdminAudits } from "./pages/AdminAudits";
+import { Privacy } from "./pages/Privacy";
+import { Terms } from "./pages/Terms";
 import { AuditProvider } from "./context/AuditContext";
 import { AuditModal } from "./components/AuditModal";
 
@@ -36,6 +39,9 @@ export default function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/payment" element={<Payment />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/admin/audits" element={<AdminAudits />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               {/* Fallback for other routes */}
               <Route path="*" element={<Home />} />
             </Routes>

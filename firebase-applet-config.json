@@ -1,10 +1,12 @@
 {
-  "projectId": "sky-interxept-490918",
-  "appId": "1:201799866755:web:0908375385c2725b82feb6",
-  "apiKey": "AIzaSyBFSHVauWgH9zhqUtlwTQV88MI8RuzvLbo",
-  "authDomain": "sky-interxept-490918.firebaseapp.com",
+  "projectId": "citationgenerator001",
+  "appId": "1:111690493334:web:6bbe4e2c199b152e2181b7",
+  "apiKey": "AIzaSyCRWCV6H5iU6iS6HnZqGdn-N0C0AgHkmjY",
+  "authDomain": "citationgenerator001.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-59e233ea-2c5c-48d6-94ee-4b317d14862e",
-  "storageBucket": "sky-interxept-490918.firebasestorage.app",
-  "messagingSenderId": "201799866755",
-  "measurementId": ""
+  "storageBucket": "citationgenerator001.firebasestorage.app",
+  "messagingSenderId": "111690493334",
+  "measurementId": "",
+  "oAuthClientId": "111690493334-a6stmi2h7bip9hsff2qm7d9ticeos8fv.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }
