@@ -53,7 +53,7 @@ export const Navbar = () => {
             referrerPolicy="no-referrer" 
           />
           <span className="font-display font-bold text-xl tracking-tighter uppercase hidden sm:block">
-            VIBE<span className="text-brand-primary italic">GROWTH</span>
+            VIBE<span className="text-brand-primary italic">GROWTH</span> by Citation Generator
           </span>
         </Link>
 

@@ -1,32 +1,137 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
+    // Global safety net: deny all access unless explicitly matched below
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Maintainable admin authorization:
+    // 1. Custom Auth claim (admin == true) set via Firebase Admin SDK
+    // 2. Server/Console-managed /admins/{uid} allowlist document
+    // 3. Verified bootstrap owner email (requires email_verified == true)
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.email == "jeremycodjoe@gmail.com";
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "jeremycodjoe@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() >= 5 &&
+        email.size() <= 254 &&
+        email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['name', 'email', 'service', 'createdAt']) &&
+        data.keys().hasOnly(['name', 'email', 'brand', 'service', 'message', 'createdAt']) &&
+        data.name is string &&
+        data.name.size() >= 1 &&
+        data.name.size() <= 100 &&
+        isValidEmail(data.email) &&
+        (!('brand' in data) || (data.brand is string && data.brand.size() <= 120)) &&
+        data.service is string &&
+        data.service in [
+          'Google Maps Dominance',
+          'Review Automation & AI',
+          'Instant Lead Landing Page'
+        ] &&
+        (!('message' in data) || (data.message is string && data.message.size() <= 2000)) &&
+        data.createdAt == request.time;
+    }
+
+    function isValidAudit(data) {
+      return data.keys().hasAll(['businessName', 'industry', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['businessName', 'industry', 'email', 'phone', 'createdAt']) &&
+        data.businessName is string &&
+        data.businessName.size() >= 1 &&
+        data.businessName.size() <= 120 &&
+        data.industry is string &&
+        data.industry in [
+          'Roofing',
+          'Landscaping',
+          'Plumbing',
+          'HVAC',
+          'Electrical',
+          'Other Service Pro'
+        ] &&
+        isValidEmail(data.email) &&
+        (!('phone' in data) || (
+          data.phone is string &&
+          data.phone.size() <= 30 &&
+          (data.phone.size() == 0 || data.phone.matches('^[0-9+()\\-.\\s]{7,30}$'))
+        )) &&
+        data.createdAt == request.time;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'updatedAt']) &&
+        data.keys().hasOnly(['displayName', 'email', 'updatedAt']) &&
+        isValidEmail(data.email) &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+        data.updatedAt == request.time;
     }
 
     match /leads/{leadId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow create: if isValidId(leadId) && isValidLead(incoming());
+      allow get: if isValidId(leadId) && isAdmin();
+      allow list: if isAdmin();
+      allow update: if isValidId(leadId) && isAdmin() && isValidLead(incoming()) && incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(leadId) && isAdmin();
     }
 
     match /audits/{auditId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow create: if isValidId(auditId) && isValidAudit(incoming());
+      allow get: if isValidId(auditId) && isAdmin();
+      allow list: if isAdmin();
+      allow update: if isValidId(auditId) && isAdmin() && isValidAudit(incoming()) && incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(auditId) && isAdmin();
     }
 
+    // Payments are created and updated strictly by the backend via Firebase Admin SDK & Stripe webhooks.
     match /payments/{paymentId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow get: if isValidId(paymentId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
     }
 
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow get: if isValidId(userId) && isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isValidId(userId) && isVerifiedUser() && request.auth.uid == userId && isValidUser(incoming());
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Server/Console-only collections (Admin SDK bypasses rules)
+    match /admins/{adminId} {
+      allow read, write: if false;
+    }
+
+    match /stripe_events/{eventId} {
+      allow read, write: if false;
     }
   }
 }

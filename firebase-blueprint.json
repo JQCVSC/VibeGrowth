@@ -2,49 +2,96 @@
   "entities": {
     "payments": {
       "title": "Payment Record",
-      "description": "Stores payment information for users.",
+      "description": "Server-managed payment records linked to Firebase users and Stripe PaymentIntents.",
       "type": "object",
       "properties": {
-        "userId": { "type": "string", "description": "The ID of the user who made the payment." },
-        "amount": { "type": "number", "description": "The amount paid in cents." },
-        "status": { "type": "string", "enum": ["pending", "completed", "failed"], "description": "The status of the payment." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "The time the payment was recorded." },
-        "stripePaymentIntentId": { "type": "string", "description": "The Stripe PaymentIntent ID." }
+        "userId": { "type": "string", "description": "Verified Firebase Auth UID of the customer." },
+        "userEmail": { "type": "string", "description": "Verified email address of the customer, if present." },
+        "amount": { "type": "number", "description": "Server-calculated amount in cents." },
+        "currency": { "type": "string", "enum": ["usd"], "description": "Payment currency code." },
+        "planName": { "type": "string", "description": "Display name of the plan or menu order." },
+        "productIds": { "type": "array", "description": "Allowlisted product IDs purchased." },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"], "description": "Verified payment status." },
+        "stripePaymentIntentId": { "type": "string", "description": "Stripe PaymentIntent ID." },
+        "lastWebhookEventId": { "type": "string", "description": "Most recent processed Stripe webhook event ID." },
+        "failureReason": { "type": "string", "description": "Optional failure reason recorded from Stripe." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of intent creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update." },
+        "completedAt": { "type": "string", "format": "date-time", "description": "Server timestamp when payment completed." }
       },
-      "required": ["userId", "amount", "status", "createdAt"]
+      "required": ["userId", "amount", "currency", "planName", "productIds", "status", "stripePaymentIntentId", "createdAt"]
     },
     "leads": {
       "title": "Lead",
-      "description": "A contact form submission.",
+      "description": "A validated contact form submission.",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "brand": { "type": "string" },
-        "service": { "type": "string" },
-        "message": { "type": "string" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 254, "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" },
+        "brand": { "type": "string", "maxLength": 120 },
+        "service": {
+          "type": "string",
+          "enum": ["Google Maps Dominance", "Review Automation & AI", "Instant Lead Landing Page"]
+        },
+        "message": { "type": "string", "maxLength": 2000 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "email", "service", "createdAt"]
     },
     "audits": {
       "title": "Audit",
-      "description": "A free audit request.",
+      "description": "A validated free local visibility audit request.",
       "type": "object",
       "properties": {
-        "businessName": { "type": "string" },
-        "industry": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "phone": { "type": "string" },
+        "businessName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "industry": {
+          "type": "string",
+          "enum": ["Roofing", "Landscaping", "Plumbing", "HVAC", "Electrical", "Other Service Pro"]
+        },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 254, "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" },
+        "phone": { "type": "string", "maxLength": 30 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["businessName", "industry", "email", "createdAt"]
+    },
+    "users": {
+      "title": "User Profile",
+      "description": "Owner-editable basic profile record.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 254 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "updatedAt"]
+    },
+    "admins": {
+      "title": "Admin Allowlist",
+      "description": "Server/Console-managed admin UID allowlist.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    },
+    "stripe_events": {
+      "title": "Processed Stripe Event",
+      "description": "Idempotency log of verified Stripe webhook events.",
+      "type": "object",
+      "properties": {
+        "eventId": { "type": "string" },
+        "type": { "type": "string" },
+        "paymentIntentId": { "type": "string" },
+        "processedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["eventId", "type", "paymentIntentId", "processedAt"]
     }
   },
   "firestore": {
     "/payments/{paymentId}": {
       "schema": "payments",
-      "description": "Collection of payment records."
+      "description": "Collection of server-managed payment records."
     },
     "/leads/{leadId}": {
       "schema": "leads",
@@ -53,6 +100,18 @@
     "/audits/{auditId}": {
       "schema": "audits",
       "description": "Collection of free audit requests."
+    },
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Collection of user profile documents."
+    },
+    "/admins/{adminId}": {
+      "schema": "admins",
+      "description": "Server/Console-only admin UID allowlist."
+    },
+    "/stripe_events/{eventId}": {
+      "schema": "stripe_events",
+      "description": "Server-only Stripe webhook idempotency log."
     }
   }
 }
